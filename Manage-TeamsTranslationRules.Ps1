@@ -1,6 +1,17 @@
 $VerbosePreference = "continue"
 #region FUNCTIONS
+function Get-Type ($type) {
+    switch($type) {
+        'InboundCallerNumber' {'InboundPstnNumberTranslationRules'} 
+        'InboundCalledNumber' {'InboundTeamsNumberTranslationRules'} 
+        'OutboundCalledNumber' {'OutboundPstnNumberTranslationRules'} 
+        'OutboundCallerNumber' {'OutbundTeamsNumberTranslationRules'} 
+        default {$type}
+    }
+}
 function CsOnlinePSTNGatewayParamBuilder ($gw, $type, $translationList) {
+    $type = Get-Type $type
+    
     $cmdParamBuilder = @{            
         Identity = $gw        
     }
@@ -24,7 +35,9 @@ function CsOnlinePSTNGatewayParamBuilder ($gw, $type, $translationList) {
         return $null
     } 
 }
+
 function New-TeamsTrunkTranslation ($gw, $name, $description, $pattern, $translation, $type) {
+    $type = Get-Type $type
     $existingTrunkTranslations = (Get-CsOnlinePSTNGateway -Identity $gw).($type)
     $existingTrunkTranslationsCount = $existingTrunkTranslations.count
     $existingTentantTranslations = Get-CsTeamsTranslationRule
@@ -59,6 +72,7 @@ function New-TeamsTrunkTranslation ($gw, $name, $description, $pattern, $transla
 }
 
 function Remove-TeamsTrunkTranslation ($gw, $name, $type) {
+    $type = Get-Type $type
     $existingTrunkTranslations = (Get-CsOnlinePSTNGateway -Identity $gw).($type)
     $existingTrunkTranslationsCount = $existingTrunkTranslations.count
     
@@ -79,30 +93,37 @@ function Remove-TeamsTrunkTranslation ($gw, $name, $type) {
         Write-Host "No $type exist for to gateway $gw"
     }
 }
+function Get-TeamsTrunkTranslations ($gw, $type) {
+    $type = Get-Type $type
+    $existingTrunkTranslations = (Get-CsOnlinePSTNGateway -Identity $gw).($type)
+    $existingTrunkTranslationsCount = $existingTrunkTranslations.count
+    return Get-CsTeamsTranslationRule | where {$existingTrunkTranslations -contains $_.Identity} | Select Pattern, Translation, Identity, Description | FT
+}
 #endregion FUNCTIONS
 
 #region RUN SCRIPT
-<# Connect to O365
-$UserName = "andrew@amorpeth.onmicrosoft.com"
-#SfBOnline
+<# STEP 1: Connect to SfBOnline
 Import-Module SkypeOnlineConnector
 $sfboSession = New-CsOnlineSession -UserName $Username
 Import-PSSession $sfboSession 
 Enable-CsOnlineSessionForReconnection
-#>
+###>
 
-#Variables
-$gw = 'ucgeek.sbc2.voiceswitch.nz'
-$name = "FwdDualNumber_Andrew.Morpeth_6498926461_TO_6498926460_TEST1"
-$description = "Fwd Dual Number - Andrew Morpeth - 6498926461 TO 6498926460"
-$pattern = '\+6498926461'
-$translation = '+6498926460'
-$type = "InboundTeamsNumberTranslationRules" #InboundPstnNumberTranslationRules | InboundTeamsNumberTranslationRules | OutboundPstnNumberTranslationRules | OutbundTeamsNumberTranslationRules
+#STEP 2: Set your variables
+$UserName = "andrew@amorpeth.onmicrosoft.com" #Admin username for login
+$gw = 'ucgeek.sbc2.voiceswitch.nz' #Direct Routing gateway/trunk
+$name = "FwdDualNumber_Andrew.Morpeth_6498926461_TO_6498926460_TEST1" #Name/identity
+$description = "Fwd Dual Number - Andrew Morpeth - 6498926461 TO 6498926460" #Description
+$pattern = '\+6498926461' #Regex pattern to match
+$translation = '+6498926460' #Output pattern
+$type = "InboundCalledNumber" #InboundPstnNumberTranslationRules/InboundCallerNumber | InboundTeamsNumberTranslationRules/InboundCalledNumber | OutboundPstnNumberTranslationRules/OutboundCalledNumber | OutbundTeamsNumberTranslationRules/OutboundCallerNumber
+###
 
-#Examples
+#STEP 3: Run command. Examples:
 New-TeamsTrunkTranslation -gw $gw -name $name -description $description -pattern $pattern -translation $translation -type $type
 Remove-TeamsTrunkTranslation -gw $gw -name $name -type $type
-
+Get-TeamsTrunkTranslations -gw $gw -type $type
+###
 #endregion RUN SCRIPT
 
 #region TESTS & DELETES
