@@ -1,25 +1,37 @@
 $VerbosePreference = "continue"
-
+<#
 $UserName = "andrew@amorpeth.onmicrosoft.com"
-#$UserName = "andrew@UCGeekElite100.onmicrosoft.com" #HelpMePlease:)
+#$UserName = "andrew@UCGeekElite100.onmicrosoft.com"
 #SfBOnline
 Import-Module SkypeOnlineConnector
-$sfboSession = New-CsOnlineSession -UserName $Username #-OverrideAdminDomain
-Import-PSSession $sfboSession
+$sfboSession = New-CsOnlineSession -UserName $Username
+Import-PSSession $sfboSession 
 Enable-CsOnlineSessionForReconnection
-
-
-#Demo Andrew 09-892 6460
-#Demo Amy 09-892 6461
-
-#Variables
-$gw = 'ucgeek.sbc2.voiceswitch.nz'
-$name = "FwdDualNumber_Andrew.Morpeth_6498926461_TO_6498926460_TEST1"
-$description = "Fwd Dual Number - Andrew Morpeth - 6498926461 TO 6498926460"
-$pattern = '\+6498926461'
-$translation = '+6498926460'
-$type = "InboundTeamsNumberTranslationRules" #InboundPstnNumberTranslationRules | InboundTeamsNumberTranslationRules | OutboundPstnNumberTranslationRules | OutbundTeamsNumberTranslationRules
-
+#>
+function CsOnlinePSTNGatewayParamBuilder ($gw, $type, $translationList) {
+    $cmdParamBuilder = @{            
+        Identity = $gw        
+    }
+    if($type -eq 'InboundPstnNumberTranslationRules') {                 
+        $cmdParamBuilder.add('InboundPstnNumberTranslationRules', $translationList)
+        return $cmdParamBuilder            
+    } 
+    elseif($type -eq 'InboundTeamsNumberTranslationRules') {                 
+        $cmdParamBuilder.add('InboundTeamsNumberTranslationRules', $translationList)  
+        return $cmdParamBuilder            
+    } 
+    elseif($type -eq 'OutboundPstnNumberTranslationRules') {                 
+        $cmdParamBuilder.add('OutboundPstnNumberTranslationRules', $translationList)  
+        return $cmdParamBuilder            
+    }
+    elseif($type -eq 'OutbundTeamsNumberTranslationRules') {                 
+        $cmdParamBuilder.add('OutbundTeamsNumberTranslationRules', $translationList)
+        return $cmdParamBuilder              
+    }
+    else {
+        return $null
+    } 
+}
 function New-TeamsTrunkTranslation ($gw, $name, $description, $pattern, $translation, $type) {
     $existingTrunkTranslations = (Get-CsOnlinePSTNGateway -Identity $gw).($type)
     $existingTrunkTranslationsCount = $existingTrunkTranslations.count
@@ -42,40 +54,52 @@ function New-TeamsTrunkTranslation ($gw, $name, $description, $pattern, $transla
         } else {
              Write-Host "Adding translation to gateway $name"
              $existingTrunkTranslations.Add($name)
-             Set-CsOnlinePSTNGateway -Identity $gw -$($type) $existingTrunkTranslations
+             $params = CsOnlinePSTNGatewayParamBuilder -gw $gw -type $type -translationList $existingTrunkTranslations
+             Set-CsOnlinePSTNGateway @params
         }
     } else {
         Write-Host "Adding 1st translation to gateway $name"
         $newTranslationList = New-Object 'System.Collections.Generic.List[string]'
         $newTranslationList.Add($name)
-        Set-CsOnlinePSTNGateway -Identity $gw -InboundTeamsNumberTranslationRules $newTranslationList
+        $params = CsOnlinePSTNGatewayParamBuilder -gw $gw -type $type -translationList $newTranslationList
+        Set-CsOnlinePSTNGateway @params
     }
-
 }
 
-fucntion CsOnlinePSTNGatewayParamBuilder ($gw, $type, $translationList) {
-    $cmdParamBuilder = @{            
-        Identity = $gw        
-    }
-    if($type -eq 'InboundPstnNumberTranslationRules') {                 
-        $cmdParamBuilder.add('InboundPstnNumberTranslationRules', $translationList)            
-    } 
-    elseif($type -eq 'InboundTeamsNumberTranslationRules') {                 
-        $cmdParamBuilder.add('InboundTeamsNumberTranslationRules', $translationList)            
-    } 
-    elseif($type -eq 'OutboundPstnNumberTranslationRules') {                 
-        $cmdParamBuilder.add('OutboundPstnNumberTranslationRules', $translationList)            
-    }
-    elseif($type -eq 'OutbundTeamsNumberTranslationRules') {                 
-        $cmdParamBuilder.add('OutbundTeamsNumberTranslationRules', $translationList)            
-    }
-    else {
-        return $null
-    }
+function Remove-TeamsTrunkTranslation ($gw, $name, $type) {
+    $existingTrunkTranslations = (Get-CsOnlinePSTNGateway -Identity $gw).($type)
+    $existingTrunkTranslationsCount = $existingTrunkTranslations.count
     
-}
-#InboundPstnNumberTranslationRules | InboundTeamsNumberTranslationRules | OutboundPstnNumberTranslationRules | OutbundTeamsNumberTranslationRules
+    #Remove translation rule from trunk
+    if ($existingTrunkTranslationsCount -gt 0) {
+        Write-Host "Found $existingTrunkTranslationsCount existing translations for trunk $gw"
+        if ($existingTrunkTranslations -Contains $name) {
+            Write-Host "Removing translation from gateway $name"
+            $existingTrunkTranslations.Remove($name)
+            $params = CsOnlinePSTNGatewayParamBuilder -gw $gw -type $type -translationList $existingTrunkTranslations
+            Set-CsOnlinePSTNGateway @params
 
+        } else {
+            Write-Host "Skipping, $name not associated to $gw"
+
+        }
+    } else {
+        Write-Host "No $type exist for to gateway $gw"
+    }
+}
+
+
+
+#Variables
+$gw = 'ucgeek.sbc2.voiceswitch.nz'
+$name = "FwdDualNumber_Andrew.Morpeth_6498926461_TO_6498926460_TEST1"
+$description = "Fwd Dual Number - Andrew Morpeth - 6498926461 TO 6498926460"
+$pattern = '\+6498926461'
+$translation = '+6498926460'
+$type = "InboundTeamsNumberTranslationRules" #InboundPstnNumberTranslationRules | InboundTeamsNumberTranslationRules | OutboundPstnNumberTranslationRules | OutbundTeamsNumberTranslationRules
+
+New-TeamsTrunkTranslation -gw $gw -name $name -description $description -pattern $pattern -translation $translation -type $type
+Remove-TeamsTrunkTranslation -gw $gw -name $name -type $type
 
 
 <# TESTS & DELETES
