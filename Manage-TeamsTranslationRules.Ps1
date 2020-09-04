@@ -1,13 +1,5 @@
 $VerbosePreference = "continue"
-<#
-$UserName = "andrew@amorpeth.onmicrosoft.com"
-#$UserName = "andrew@UCGeekElite100.onmicrosoft.com"
-#SfBOnline
-Import-Module SkypeOnlineConnector
-$sfboSession = New-CsOnlineSession -UserName $Username
-Import-PSSession $sfboSession 
-Enable-CsOnlineSessionForReconnection
-#>
+#region FUNCTIONS
 function CsOnlinePSTNGatewayParamBuilder ($gw, $type, $translationList) {
     $cmdParamBuilder = @{            
         Identity = $gw        
@@ -87,8 +79,17 @@ function Remove-TeamsTrunkTranslation ($gw, $name, $type) {
         Write-Host "No $type exist for to gateway $gw"
     }
 }
+#endregion FUNCTIONS
 
-
+#region RUN SCRIPT
+<# Connect to O365
+$UserName = "andrew@amorpeth.onmicrosoft.com"
+#SfBOnline
+Import-Module SkypeOnlineConnector
+$sfboSession = New-CsOnlineSession -UserName $Username
+Import-PSSession $sfboSession 
+Enable-CsOnlineSessionForReconnection
+#>
 
 #Variables
 $gw = 'ucgeek.sbc2.voiceswitch.nz'
@@ -98,47 +99,16 @@ $pattern = '\+6498926461'
 $translation = '+6498926460'
 $type = "InboundTeamsNumberTranslationRules" #InboundPstnNumberTranslationRules | InboundTeamsNumberTranslationRules | OutboundPstnNumberTranslationRules | OutbundTeamsNumberTranslationRules
 
+#Examples
 New-TeamsTrunkTranslation -gw $gw -name $name -description $description -pattern $pattern -translation $translation -type $type
 Remove-TeamsTrunkTranslation -gw $gw -name $name -type $type
 
+#endregion RUN SCRIPT
 
-<# TESTS & DELETES
+#region TESTS & DELETES
+<#
 Get-CsOnlinePSTNGateway -Identity $gw
 Set-CsOnlinePSTNGateway -Identity $gw -InboundTeamsNumberTranslationRules (New-Object 'System.Collections.Generic.List[string]')
-#Get-CsTeamsTranslationRule | Remove-CsTeamsTranslationRule
+Get-CsTeamsTranslationRule | Remove-CsTeamsTranslationRule
 #>
-
-<# OLD 
-#$gw = 'ucgeeke100.sbc.voiceswitch.nz'
-Get-CsOnlinePSTNGateway -Identity $gw
-
-$InboundTeamsNumberTranslations = New-Object 'System.Collections.Generic.List[string]'
-New-CsTeamsTranslationRule -Identity "FwdDualNumber_Andrew.Morpeth_6498926461_TO_6498926460_TEST1" -Pattern '\+6498926461' -Translation '+6498926460' -Description "Fwd Dual Number - Andrew Morpeth - 6498926461 TO 6498926460"| Out-Null
-$InboundTeamsNumberTranslations.Add("FwdDualNumber_Andrew.Morpeth_6498926461_TO_6498926460_TEST1")
-#$InboundTeamsNumberTranslations.Add((New-CsTeamsTranslationRule -Identity "FwdDualNumber_Andrew.Morpeth_6498926461_TO_6498926460_TEST1" -Pattern '\+6498926461' -Translation '+6498926460' -Description "Fwd Dual Number - Andrew Morpeth - 6498926461 TO 6498926460"))
-
-#>
-
-<# KEN's
-#Create Teams Translations
-Write-Host 'Creating outbound translation rules'
-$OutboundTeamsNumberTranslations = New-Object 'System.Collections.Generic.List[string]'
-$OutboundPSTNNumberTranslations = New-Object 'System.Collections.Generic.List[string]'
-New-CsTeamsTranslationRule -Identity "NZ-Auckland-AllCalls" -Pattern '<REGEX>' -Translation '+$1$2' -Description "ABC"| Out-Null
-$OutboundTeamsNumberTranslations.Add("NZ-Auckland-AllCalls")
-
-Write-Host 'Adding translation rules to PSTN gateways'
-ForEach ($PSTNGW in $PSTNGWList) {
-	Set-CsOnlinePSTNGateway -Identity $PSTNGW.Identity -OutboundTeamsNumberTranslationRules $OutboundTeamsNumberTranslations -OutboundPstnNumberTranslationRules $OutboundPSTNNumberTranslations -ErrorAction SilentlyContinue
-}
-
-#Wipe all custom dial plans
-Get-CsTenantDialPlan | Remove-CsTenantDialPlan
-Get-CsOnlineVoiceRoute | Remove-CsOnlineVoiceRoute
-Get-CsOnlineVoiceRoutingPolicy | Remove-CsOnlineVoiceRoutingPolicy
-Set-CsOnlinePstnUsage Global -Usage $NULL
-$GWList = Get-CsOnlinePSTNGateway
-ForEach ($GW in $GWList) { Set-CsOnlinePSTNGateway -Identity $GW.FQDN -OutboundTeamsNumberTranslationRules $NULL -OutboundPSTNNumberTranslationRules $NULL -InboundTeamsNumberTranslationRules $NULL -InboundPSTNNumberTranslationRules $NULL }
-Get-CsTeamsTranslationRule | Remove-CsTeamsTranslationRule 
-
-#>
+#endregion TESTS & DELETES
