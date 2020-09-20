@@ -327,18 +327,3 @@ $type = "OutboundCallerNumber"
 #Export-TeamsTrunkTranslations -GatewayList $gw #-FilePath "D:\Temp" #Optional comma seperated list of gateways
 ###
 #endregion RUN SCRIPT
-
-#region TESTS & DELETES
-<#
-Get-CsOnlinePSTNGateway -Identity $gw
-Set-CsOnlinePSTNGateway -Identity $gw -InboundTeamsNumberTranslationRules (New-Object 'System.Collections.Generic.List[string]')
-Get-CsTeamsTranslationRule | Remove-CsTeamsTranslationRule
-#>
-#endregion TESTS & DELETES
-
-<# NOTES
-A user with +6498926461;ext=1000 assigned can be called with the DDI without any translation or anything else
-If I then add the number +6498926461 to an AA it becomes the prioity
-Now I can assign a trunk translation to that 'non-DDI' range and strip ext=, and present the AA number outbound (In Kordia's case they handle the call with ext=, so not required)
-If you dont assign a number to a user MS presents 'anonymous', however it doesnt appear that you can translate this to another number e.g. $translation = 'anonymous'
-#>
